@@ -1,5 +1,6 @@
 {
   "name": "purescript-sparse-polynomials",
+  "license": "MIT",
   "ignore": [
     "**/.*",
     "node_modules",

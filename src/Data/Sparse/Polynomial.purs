@@ -277,7 +277,7 @@ roots pnum =
 instance showPoly :: Show a => Show (Polynomial a) where
   show p = "{fromTuples " <> (foldr (<>) "" $ show <$> sortedMonoms p) <> "}"
   
-derivative :: ∀a. Eq a => Semiring a => (Int -> a) -> Polynomial a -> Polynomial a
+derivative :: forall a. Eq a => Semiring a => (Int -> a) -> Polynomial a -> Polynomial a
 derivative fromInt (Poly a) = Poly $ fromFoldable $ catMaybes $ map (uncurry deriveMononom) $ toUnfoldable a
   where
     deriveMononom 0 _ = Nothing

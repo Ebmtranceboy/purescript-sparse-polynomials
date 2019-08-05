@@ -1,18 +1,18 @@
 module Data.Sparse.Polynomial(module Data.Sparse.Polynomial) where
 
 import Prelude
-import Data.Map( Map, empty, insert, singleton, toUnfoldable
-               , filter, mapMaybe, union, unionWith)
-import Data.Array(sortBy,uncons,(..),(!!))
-import Data.Maybe(Maybe(..),fromJust)
-import Data.Foldable(foldr)
-import Data.FoldableWithIndex(foldrWithIndex)
-import Data.Tuple(Tuple(..))
-import Data.Complex(Cartesian(..), magnitudeSquared)
-import Data.Complex(pow) as Cartesian
-import Partial.Unsafe(unsafePartial)
-import Math(sqrt)
-import Data.Int(toNumber)
+
+import Data.Array (catMaybes, sortBy, uncons, (!!), (..))
+import Data.Complex (Cartesian(..), magnitudeSquared)
+import Data.Complex (pow) as Cartesian
+import Data.Foldable (foldr)
+import Data.FoldableWithIndex (foldrWithIndex)
+import Data.Int (toNumber)
+import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton, toUnfoldable, union, unionWith)
+import Data.Maybe (Maybe(..), fromJust)
+import Data.Tuple (Tuple(..), uncurry)
+import Math (sqrt)
+import Partial.Unsafe (unsafePartial)
 
 -- | Represents a polynomial by the discrete list of its non-zero
 -- | terms, stored in a map 
@@ -277,4 +277,9 @@ roots pnum =
 instance showPoly :: Show a => Show (Polynomial a) where
   show p = "{fromTuples " <> (foldr (<>) "" $ show <$> sortedMonoms p) <> "}"
   
-   
+derivative :: forall a. Eq a => Semiring a => (Int -> a) -> Polynomial a -> Polynomial a
+derivative fromInt (Poly a) = Poly $ fromFoldable $ catMaybes $ map (uncurry deriveMononom) $ toUnfoldable a
+  where
+    deriveMononom 0 _ = Nothing
+    deriveMononom _ coef | coef == zero = Nothing
+    deriveMononom exp coef = Just $ Tuple (exp - 1) (coef * fromInt exp)

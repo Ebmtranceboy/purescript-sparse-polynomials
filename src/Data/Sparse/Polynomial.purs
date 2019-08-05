@@ -13,6 +13,7 @@ import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple (Tuple(..), uncurry)
 import Math (sqrt)
 import Partial.Unsafe (unsafePartial)
+import Data.Ratio(Ratio, (%))
 
 -- | Represents a polynomial by the discrete list of its non-zero
 -- | terms, stored in a map 
@@ -60,6 +61,11 @@ import Partial.Unsafe (unsafePartial)
 -- | 
 -- | > r `mod` s
 -- | {fromTuples (Tuple 0 2 % 1)}
+-- | 
+-- | >  
+-- | > -- No surprise with differentiation:
+-- | > diff $ (2%1)^3<>(-3%1)^1
+-- | {fromTuples (Tuple 2 6 % 1)(Tuple 0 -3 % 1)}
 -- | 
 -- | > 
 -- | > -- Composition is using the (:.) apply operator:
@@ -262,11 +268,9 @@ roots pnum =
                let good = i `th` goods
                    prod = 
                      foldr (\j acc -> 
-                       acc * (if i==j 
-                                then one 
-                                else good - (j `th` goods)
-                             )
-                           ) one indices
+                       if i==j 
+                        then acc 
+                        else acc * ( good - (j `th` goods))) one indices
                 in good - (unitary :. good) / prod) indices
               error = (\x -> x / (toNumber degree)) $ foldr (\k acc -> 
                 sqrt (magnitudeSquared $ 
@@ -283,3 +287,22 @@ derivative fromInt (Poly a) = Poly $ fromFoldable $ catMaybes $ map (uncurry der
     deriveMononom 0 _ = Nothing
     deriveMononom _ coef | coef == zero = Nothing
     deriveMononom exp coef = Just $ Tuple (exp - 1) (coef * fromInt exp)
+
+class IntLiftable a where
+    fromInt :: Int -> a
+
+instance intIntLiftable :: IntLiftable Int where
+  fromInt = identity
+
+instance numberIntLiftable :: IntLiftable Number where
+  fromInt = toNumber
+
+instance complexIntLiftable :: (Semiring a, Ring a, IntLiftable a) => IntLiftable (Cartesian a) where
+  fromInt n = (_ * fromInt n) <$> one 
+
+instance ratioIntLiftable :: (Ord a, IntLiftable a, EuclideanRing a) => IntLiftable (Ratio a) where
+  fromInt n = fromInt n % one
+
+diff :: forall a. Eq a => Ord a => Semiring a => EuclideanRing a => IntLiftable a => Polynomial a -> Polynomial a
+diff = derivative fromInt
+

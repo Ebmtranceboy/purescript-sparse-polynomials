@@ -8,8 +8,9 @@ import Data.Complex (pow) as Cartesian
 import Data.Foldable (foldr)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Int (toNumber)
-import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton, toUnfoldable, union, unionWith)
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton
+                , toUnfoldable, union, unionWith, lookup)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Tuple (Tuple(..), uncurry)
 import Math (sqrt)
 import Partial.Unsafe (unsafePartial)
@@ -37,9 +38,9 @@ import Data.Ratio(Ratio, (%))
 -- | 13.0
 -- | 
 -- | > -- as expected :-)
--- | > 
--- | > -- Polynomials constitute a ring, so usual mathematical operations can be 
--- | > -- performed:
+-- | >
+-- | > -- Polynomials constitute a ring, so usual mathematical operations can 
+-- | > -- be performed:
 -- | > a = 1 ^ 2 <> 4 ^ 0 -- working with Int here
 -- | > b = 1 ^ 1 <> 1 ^ 0
 -- | > a+b
@@ -50,9 +51,14 @@ import Data.Ratio(Ratio, (%))
 -- | 
 -- | > a*b
 -- | {fromTuples (Tuple 3 1)(Tuple 2 1)(Tuple 1 4)(Tuple 0 4)}
+-- | 
+-- | > -- Coefficients can be extracted:
+-- | > a ? 0
+-- | 4
+-- | 
 -- | > --
--- | > -- when the embedding structure is a field (Rationals, Reals, Complex ...) 
--- | > -- we can divide too 
+-- | > -- When the embedding structure is a field (Rationals, Reals, 
+-- | > -- Complex ...), we can divide too 
 -- | > import Data.Ratio
 -- | > r = (1%9) ^ 2 <> (2%1) ^ 0 -- meaning x↦(1/9) x^2 + 2
 -- | > s = (4%1) ^ 1 -- meaning x↦4x
@@ -80,7 +86,7 @@ import Data.Ratio(Ratio, (%))
 -- | 6
 -- | 
 -- | > 
--- | > -- there is also a useful tool in case of univariate real polynomials:
+-- | > -- There is also a useful tool in case of univariate real polynomials:
 -- | > pol = 1.0 ^ 2 <> 7.0 ^ 1 <> 12.0 ^ 0
 -- | > roots pol
 -- | [-3.0000000000000004-2.5587943030169417e-19i,
@@ -88,7 +94,7 @@ import Data.Ratio(Ratio, (%))
 -- | 
 -- | > -- which gives the approximative values of all the complex roots of the 
 -- | > -- polynomial.
--- | > -- Thanks to the sparse nature of the library, any abuse is permitted :-)
+-- | > -- Thanks to the sparse nature of the lib, any abuse is permitted :-)
 -- | > -- but best results are given when there is no multiple roots
 -- | > roots $ 1.0 ^ 16 <> (-1.0) ^ 0
 -- | [1.0+0.0i,0.3826834323650898+0.9238795325112867i,
@@ -118,8 +124,8 @@ import Data.Ratio(Ratio, (%))
 -- | {fromTuples (Tuple 0 {fromTuples (Tuple 0 {fromTuples (Tuple 0 
 -- |                                             {fromTuples (Tuple 0 1)})})})}
 -- | 
--- | > -- setters are little more difficult.
--- | > -- As t is the more shallow, it is the easiest
+-- | > -- Setters are little more difficult.
+-- | > -- As t is the most shallow, it is the easiest
 -- | > setT val = (_ :. val)
 -- | > setZ val = (<$>) (_ :. val)
 -- | > setY val = (<$>) (setZ val)
@@ -142,7 +148,10 @@ import Data.Ratio(Ratio, (%))
 -- | > setT 4 $ setZ 3 $ setY 2 $ setX 1 pXYZT
 -- | 288
 -- | 
--- | >
+-- | > -- Coefficients can be extracted but [WARNING], in the reversed
+-- | > -- order relative to insertion
+-- | > pXYZT T ? 0 ? 0 ? 2 ? 0 -- meaning coefficient of y²
+-- | 1
 -- | ```
 data Polynomial a = Poly (Map Int a)
 
@@ -151,7 +160,14 @@ monoPol :: forall a. a -> Int -> Polynomial a
 monoPol x n = Poly $ insert n x empty
 
 -- |  Monoterm polynomial infix notation
-infixl 6 monoPol as ^
+infixl 6 monoPol as ^ 
+      
+-- | Coefficient extraction
+query :: forall a. Semiring a => Polynomial a -> Int -> a
+query (Poly p) n = fromMaybe zero $ lookup n p
+
+-- |  Coefficient extraction infix notation
+infixl 6 query as ?
 
 -- | Warning : the 2 appended maps are assumed without common keys
 instance semigroupPoly :: Semigroup (Polynomial a) where
@@ -281,12 +297,15 @@ roots pnum =
 instance showPoly :: Show a => Show (Polynomial a) where
   show p = "{fromTuples " <> (foldr (<>) "" $ show <$> sortedMonoms p) <> "}"
   
-derivative :: forall a. Eq a => Semiring a => (Int -> a) -> Polynomial a -> Polynomial a
-derivative fromInt (Poly a) = Poly $ fromFoldable $ catMaybes $ map (uncurry deriveMononom) $ toUnfoldable a
-  where
-    deriveMononom 0 _ = Nothing
-    deriveMononom _ coef | coef == zero = Nothing
-    deriveMononom exp coef = Just $ Tuple (exp - 1) (coef * fromInt exp)
+derivative :: forall a. Eq a => Semiring a => 
+  (Int -> a) -> Polynomial a -> Polynomial a
+derivative fromInt (Poly a) = 
+  Poly $ fromFoldable $ catMaybes $ 
+    map (uncurry deriveMonom) $ toUnfoldable a
+      where
+        deriveMonom 0 _ = Nothing
+        deriveMonom _ coef | coef == zero = Nothing
+        deriveMonom exp coef = Just $ Tuple (exp - 1) (coef * fromInt exp)
 
 class IntLiftable a where
     fromInt :: Int -> a
@@ -297,12 +316,17 @@ instance intIntLiftable :: IntLiftable Int where
 instance numberIntLiftable :: IntLiftable Number where
   fromInt = toNumber
 
-instance complexIntLiftable :: (Semiring a, Ring a, IntLiftable a) => IntLiftable (Cartesian a) where
+instance complexIntLiftable :: 
+  (Semiring a, Ring a, IntLiftable a) => IntLiftable (Cartesian a) where
   fromInt n = (_ * fromInt n) <$> one 
 
-instance ratioIntLiftable :: (Ord a, IntLiftable a, EuclideanRing a) => IntLiftable (Ratio a) where
+instance ratioIntLiftable :: 
+  (Ord a, IntLiftable a, EuclideanRing a) => IntLiftable (Ratio a) where
   fromInt n = fromInt n % one
 
-diff :: forall a. Eq a => Ord a => Semiring a => EuclideanRing a => IntLiftable a => Polynomial a -> Polynomial a
+-- | Univariate polynomial differentiation
+diff :: forall a. Eq a => Ord a => 
+  Semiring a => EuclideanRing a => IntLiftable a => 
+               Polynomial a -> Polynomial a
 diff = derivative fromInt
 

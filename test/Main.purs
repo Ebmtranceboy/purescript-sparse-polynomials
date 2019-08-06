@@ -2,7 +2,7 @@ module Test.Main where
 
 import Prelude 
 import Effect (Effect)
-import Data.Sparse.Polynomial(Polynomial, (:.),(^), roots, liftC, diff)
+import Data.Sparse.Polynomial(Polynomial, (^), (:.), (?), roots, liftC, diff)
 import Data.Complex(Cartesian, i, magnitudeSquared)
 import Data.Ratio(Ratio, (%))
 import Data.Foldable(foldr)
@@ -36,6 +36,7 @@ main = do
   assert "polynomial Number application" $ pol2 :. 2.0 == 17.0
   assert "polynomial Complex application" $ pol5 :. i == ((_ * (-3)) <$> one)
   assert "polynomial Rational application" $ pol6 :. (1%2) == -44%21
+  assert "coefficient extraction" $ pol3 ? 1 == 4
   assert "polynomial sum" $ (pol1 + pol3) :. 3 == 37
   assert "polynomial difference" $ (pol1 - pol3) :. 3 == 15
   assert "polynomial product" $ (pol1 * pol3) :. 3 == 286

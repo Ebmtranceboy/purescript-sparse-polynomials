@@ -1,8 +1,8 @@
 module Test.Main where
 
-import Prelude 
+import Prelude hiding (gcd)
 import Effect (Effect)
-import Data.Sparse.Polynomial(Polynomial, (^), (:.), (?), roots, liftC, diff)
+import Data.Sparse.Polynomial(Polynomial, (^), (:.), (?), roots, liftC, diff, gcd)
 import Data.Complex(Cartesian, i, magnitudeSquared)
 import Data.Ratio(Ratio, (%))
 import Data.Foldable(foldr)
@@ -42,6 +42,7 @@ main = do
   assert "polynomial product" $ (pol1 * pol3) :. 3 == 286
   assert "polynomial quotient" $ (pol7 / pol6) :. (0%1) == -4%3
   assert "polynomial rest" $ (pol7 `mod` pol6) :. (0%1) == -14%9
+  assert "polynomial gcd" $ gcd pol6 pol7 ==  (-1496 % 27)^0
   assert "differentiation" $ diff pol7 == (-16%3) ^ 1 <> (1%7) ^ 0
   assert "polynomial composition" $ ((:.) pol3 <<< (:.) pol1) 3 == 103
   assert "bivariate polynomial" $ ((pol4 <#> (_ :. 3)) # (_ :. 5)) == 81 

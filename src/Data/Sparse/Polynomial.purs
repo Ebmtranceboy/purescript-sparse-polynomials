@@ -1,17 +1,17 @@
 module Data.Sparse.Polynomial(module Data.Sparse.Polynomial) where
 
-import Prelude
+import Prelude hiding (gcd)
 
 import Data.Array (catMaybes, sortBy, uncons, (!!), (..))
 import Data.Complex (Cartesian(..), magnitudeSquared)
 import Data.Complex (pow) as Cartesian
-import Data.Foldable (foldr)
+import Data.Foldable (foldr,maximum,product)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Int (toNumber)
 import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton
                 , toUnfoldable, union, unionWith, lookup)
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
-import Data.Tuple (Tuple(..), uncurry)
+import Data.Tuple (Tuple(..), uncurry, snd)
 import Math (sqrt)
 import Partial.Unsafe (unsafePartial)
 import Data.Ratio(Ratio, (%))
@@ -68,6 +68,8 @@ import Data.Ratio(Ratio, (%))
 -- | > r `mod` s
 -- | {fromTuples (Tuple 0 2 % 1)}
 -- | 
+-- | > gcd r s
+-- | fromTuples (Tuple 0 2 % 1)
 -- | >  
 -- | > -- No surprise with differentiation:
 -- | > diff $ (2%1)^3<>(-3%1)^1
@@ -89,27 +91,28 @@ import Data.Ratio(Ratio, (%))
 -- | > -- There is also a useful tool in case of univariate real polynomials:
 -- | > pol = 1.0 ^ 2 <> 7.0 ^ 1 <> 12.0 ^ 0
 -- | > roots pol
--- | [-3.0000000000000004-2.5587943030169417e-19i,
--- | -3.9999999999999982+2.5588046427745986e-19i]
+-- | [-2.9999999996605635-3.769201527786494e-10i,
+-- | -4.000000000339432+3.769201528752112e-10i]
 -- | 
 -- | > -- which gives the approximative values of all the complex roots of the 
 -- | > -- polynomial.
 -- | > -- Thanks to the sparse nature of the lib, any abuse is permitted :-)
 -- | > -- but best results are given when there is no multiple roots
 -- | > roots $ 1.0 ^ 16 <> (-1.0) ^ 0
--- | [1.0+0.0i,0.3826834323650898+0.9238795325112867i,
+-- | [1.0+0.0i,0.3826834323650897+0.9238795325112867i,
 -- | -0.7071067811865476+0.7071067811865476i,
--- | -0.9238795325112867-0.3826834323650898i,1.4018530340143064e-22-1.0i,
--- | 0.9238795325112867-0.3826834323650898i,
+-- | -0.9238795325112871-0.3826834323650901i,
+-- | -2.5434386919291434e-12-1.0000000000025875i,
+-- | 0.9238795325108287-0.382683432364685i,
 -- | 0.7071067811865476+0.7071067811865476i,
 -- | -0.9238795325112867+0.3826834323650898i,
--- | -0.7071067811865475-0.7071067811865475i,
--- | 0.3826834323650898-0.9238795325112867i,
--- | 0.7071067811865475-0.7071067811865475i,
--- | 1.184013581560663e-30+1.0i,-0.3826834323650898+0.9238795325112867i,
--- | -1.0+7.614356628129376e-30i,-0.3826834323650898-0.9238795325112867i,
+-- | -0.707106781186544-0.7071067811865521i,
+-- | 0.382683432330398-0.9238795325016941i,
+-- | 0.7071067812242033-0.7071067811940133i,
+-- | 2.825247823205539e-19+1.0i,-0.3826834323650898+0.9238795325112867i,
+-- | -1.0-1.7156434035577625e-17i,-0.3826834323650554-0.9238795325112262i,
 -- | 0.9238795325112867+0.3826834323650898i]
--- | > 
+-- |  
 -- | > -- To Define multivariate polynomials, it's easier with the 
 -- | > -- basis 'vectors'.
 -- | > -- For instance, with 4 variables x,y,z and t, unity (=1 so 
@@ -152,6 +155,7 @@ import Data.Ratio(Ratio, (%))
 -- | > -- order relative to insertion
 -- | > pXYZT T ? 0 ? 0 ? 2 ? 0 -- meaning coefficient of y²
 -- | 1
+-- | 
 -- | ```
 data Polynomial a = Poly (Map Int a)
 
@@ -160,16 +164,18 @@ monoPol :: forall a. a -> Int -> Polynomial a
 monoPol x n = Poly $ insert n x empty
 
 -- |  Monoterm polynomial infix notation
-infixl 6 monoPol as ^ 
+infixl 8 monoPol as ^ 
       
 -- | Coefficient extraction
 query :: forall a. Semiring a => Polynomial a -> Int -> a
 query (Poly p) n = fromMaybe zero $ lookup n p
 
 -- |  Coefficient extraction infix notation
-infixl 6 query as ?
+infixl 8 query as ?
 
 -- | Warning : the 2 appended maps are assumed without common keys
+-- | and when they aren't, `<>` is used as the operator of resetting 
+-- | the argument to its right by the argument to its left 
 instance semigroupPoly :: Semigroup (Polynomial a) where
   append (Poly a) (Poly b) = Poly $ union a b
 
@@ -238,9 +244,31 @@ instance euclideanRingPoly ::
              else
                let r = (*) vnde $ recip vsor
                    monom = Poly $ insert (dnde-dsor) r empty
-               in f (dividende - monom * q) $ acc + monom
+               in if dnde == 0 then acc + monom 
+                  else  f (dividende - monom * q) $ acc + monom
     in f p $ Poly empty  
   mod p q = let d = p/q in p - d*q
+
+-- | Greatest common divisor of 2 univariate polynomials
+gcd :: forall a. Eq a => DivisionRing a => CommutativeRing a => 
+      Polynomial a -> Polynomial a -> Polynomial a
+gcd p q = 
+  let {u,v} = bezout p q
+  in u*p + v*q
+
+-- | Find 2 polynomials u and v such that u p1 + v p2 == gcd (p1,p2)
+bezout :: forall a. Eq a => CommutativeRing a => DivisionRing a =>
+      Polynomial a -> Polynomial a -> {u :: Polynomial a, v :: Polynomial a}
+bezout p1 p2 = res
+      where res = f {r_: p1, r:p2, u_: one, v_: zero, u: zero, v: one}
+            f {r_:r__, r:r_, u_:u__, v_:v__, u:u_, v:v_} =
+              if r_ == zero then {u:u__, v:v__}
+               else
+                  let q = r__ / r_
+                      r = r__ - q * r_
+                      u = u__ - q * u_
+                      v = v__ - q * v_
+                   in f {r_, r, u_, u, v_, v}
 
 instance ordPoly :: 
   (Ord a, Eq a, CommutativeRing a) => Ord (Polynomial a) where
@@ -277,7 +305,7 @@ roots pnum =
       candidates = (\x -> Cartesian.pow z0 x) <$> (toNumber <$> indices)
       th k xs = unsafePartial $ fromJust $ xs !! k
       f goods error' = 
-        if error' < 1e-7 
+        if error' < 1e-7
         then goods
         else 
           let betters = map (\i -> 
@@ -288,9 +316,12 @@ roots pnum =
                         then acc 
                         else acc * ( good - (j `th` goods))) one indices
                 in good - (unitary :. good) / prod) indices
-              error = (\x -> x / (toNumber degree)) $ foldr (\k acc -> 
-                sqrt (magnitudeSquared $ 
-                  (k `th` goods) - (k `th` betters)) + acc) 0.0 indices
+              error = 
+                let Poly residue = 
+                      unitary - (product $ (\z -> one^1 - z^0) <$> betters)
+                in fromMaybe 0.0 $ 
+                  maximum $ sqrt <$> magnitudeSquared <$> 
+                    snd <$> (toUnfoldable residue :: Array _)
           in f betters error
     in f candidates 1.0
 

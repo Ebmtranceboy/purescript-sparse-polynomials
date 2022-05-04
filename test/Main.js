@@ -1,6 +1,6 @@
 "use strict";
 
-exports.assert = function (message) {
+export const assert = function (message) {
   return function (success) {
     return function () {
       if (!success) throw new Error(message);

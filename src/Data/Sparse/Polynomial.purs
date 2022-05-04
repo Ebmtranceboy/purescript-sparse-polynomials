@@ -12,7 +12,7 @@ import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton
                 , toUnfoldable, union, unionWith, lookup)
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Tuple (Tuple(..), uncurry, snd)
-import Math (sqrt)
+import Data.Number (sqrt)
 import Partial.Unsafe (unsafePartial)
 import Data.Ratio(Ratio, (%))
 

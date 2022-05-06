@@ -181,7 +181,7 @@ instance semigroupPoly :: Semigroup (Polynomial a) where
 
 -- | Integer power
 pow :: forall a. Semiring a => a -> Int -> a
-pow x 0 = one
+pow _ 0 = one
 pow x i = x * pow x (i-1)
 
 -- | Polynomial application
@@ -218,15 +218,15 @@ instance commutativeRingPoly ::
 -- | by decreasing degree
 sortedMonoms :: forall a. Polynomial a -> Array (Tuple Int a)
 sortedMonoms (Poly p) = 
-   sortBy (\(Tuple i v) (Tuple j w) -> compare j i) $ toUnfoldable p
+   sortBy (\(Tuple i _) (Tuple j _) -> compare j i) $ toUnfoldable p
 
 -- | Leading term
 dominantMonom :: forall a. Eq a => Semiring a => Polynomial a -> Tuple Int a
 dominantMonom p =   
   let ordered = sortedMonoms p
   in case (uncons ordered) of
-    Just {head, tail} -> head
-    _                 -> Tuple 0 zero
+    Just { head, tail: _ } -> head
+    _                -> Tuple 0 zero
 
 -- | Warning : prelude's gcd will not work as the condition degree = 0 is
 -- | not sufficient to stop the recursion asking for value = 0
@@ -279,10 +279,12 @@ instance ordPoly ::
           Just {head: Tuple ix vx, tail: tx} ->
             case (uncons ys) of
               Just {head: Tuple iy vy, tail: ty} ->
-                case unit of
-                  unit | ix /= iy -> compare ix iy
-                       | vx /= vy -> compare vx vy
-                       | otherwise -> f tx ty
+                  next
+                    where 
+                    next
+                      | ix /= iy = compare ix iy
+                      | vx /= vy = compare vx vy
+                      | otherwise = f tx ty
               _ -> GT 
           _ -> case (uncons ys) of
             Just _ -> LT

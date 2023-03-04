@@ -606,7 +606,7 @@ instance
   nextAxis _ = Proxy :: Proxy n
   prevAxis _ = Proxy :: Proxy a
 
-
+-- | ```
 -- | > --     ---------------------------------------------------
 -- | > --    | PAD : the lifting function that introduces        |
 -- | > --    | ---                                               |
@@ -641,6 +641,7 @@ instance
 -- | > pad (Proxy :: _ 1) (5^1^1)
 -- | ((5)×t)×z
 -- |
+-- | ```
 class Pad :: Int -> Type -> Type -> Constraint
 class Pad n a b | n a -> b where
   pad :: Proxy n -> a -> b
@@ -653,6 +654,7 @@ else instance
   ) => Pad n a (Polynomial b) where
   pad _ p = pad (Proxy :: Proxy n1) p ^ 0
 
+-- | ```
 -- | > --     -----------------------------------------------------
 -- | > --    | UNPAD : the inverse of `pad` that decreases the     |
 -- | > --    | -----                                               |
@@ -675,6 +677,7 @@ else instance
 -- | > unpad (Proxy :: _ 1) (5^1^1^0 + 6^1^0^0 + 7^0^0^0)
 -- | (6)×x+7
 -- |
+-- | ```
 class Unpad :: Int -> Type -> Type -> Constraint
 class Unpad n a b | n b -> a where
   unpad :: Proxy n -> b -> a
@@ -735,6 +738,7 @@ evaluate (Poly coeffs) x =
 -- | Univariate polynomial evaluation infix notation
 infixl 5 evaluate as :.
 
+-- | ```
 -- | > --     ---------------------------------------------------------
 -- | > --    | SET : the evaluating function that removes the variable |
 -- | > --    | ---                                                     |
@@ -767,6 +771,7 @@ infixl 5 evaluate as :.
 -- | > (5) `set (Proxy :: _ 2)` (1^0^0^1 + 2^1^3^0) 
 -- | (1)×x+(10)×y^3
 -- | 
+-- | ```
 class Set :: Int -> Type -> Type -> Constraint
 class Set n a b | n b -> a where
   set :: Proxy n -> a -> Polynomial b -> b 
@@ -832,6 +837,7 @@ xpand :: forall a.
   Polynomial a -> Polynomial a -> Polynomial a
 xpand = flip flipXpand
 
+-- | ```
 -- | > --     ------------------------------------------------
 -- | > --    | FILL : the substitution function that replaces |
 -- | > --    | ----                                           |
@@ -861,7 +867,8 @@ xpand = flip flipXpand
 -- |
 -- | > (1^0^0^1 + 1^0^1^0) `fill (Proxy :: _ 2)` (1^0^0^1 + 2^1^3^0) 
 -- | ((2)×y^3+1)×x+(2)×y^4
--- | 
+-- |
+-- | ```
 fill :: forall a v w.
   Eq a =>
   Semiring a =>
@@ -1191,7 +1198,7 @@ else instance Arity (Polynomial a) 1 where
 else instance Arity a 0 where
   arity' _ = Proxy
 
-
+-- | ```
 -- | > --     -------------------------------------------------
 -- | > --    | PEEL : the extracting function that returns     |
 -- | > --    | ----                                            |
@@ -1213,6 +1220,7 @@ else instance Arity a 0 where
 -- | > peel $ (4^2^2 - 12^1^1) / 2^1^1
 -- | -6
 -- |
+-- | ```
 class Peel a b | a -> b where
   peel :: Polynomial a -> b
   
@@ -1244,7 +1252,7 @@ instance
 else instance (Semiring a, Eq a) => Axed a a where
   axes _ = identity /\ []
 
-
+-- | ```
 -- | > --     -------------------------------------------------
 -- | > --    | NEST : the extension function that introduces a |
 -- | > --    | ----                                            |
@@ -1288,6 +1296,7 @@ else instance (Semiring a, Eq a) => Axed a a where
 -- | > nest (Proxy :: _ 2) $ 34^1^1^1
 -- | (((34)×t)×y)×x
 -- |
+-- | ```
 class Nest :: Int -> Type -> Constraint
 class Nest n a where
   nest :: Proxy n -> a -> Polynomial a 
@@ -1303,6 +1312,7 @@ else instance
 xtend :: forall a. a -> Polynomial a
 xtend a = a ^ 0
 
+-- | ```
 -- | > --     --------------------------------------------
 -- | > --    | SWAP : the swapping function that permutes |
 -- | > --    | ----                                       |
@@ -1327,6 +1337,7 @@ xtend a = a ^ 0
 -- | > swap (Proxy :: _ 3) (Proxy :: _ 1) f
 -- | (3)×x^2+(5)×y+((4)×t^3)×z
 -- |
+-- | ```
 class SwapAdjacent :: Int -> Type -> Constraint
 class SwapAdjacent n a where
   swapAdjacent :: 

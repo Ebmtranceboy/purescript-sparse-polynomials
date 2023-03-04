@@ -4,6 +4,8 @@
 /output/
 /generated-docs/
 /.psc-package/
+/.psci_modules/
 /.psc*
 /.purs*
 /.psa*
+/.spago

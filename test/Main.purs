@@ -2,22 +2,25 @@ module Test.Main where
 
 import Prelude hiding (gcd)
 import Effect (Effect)
+import Data.Array (all)
 import Data.Sparse.Polynomial
   ( Polynomial
   , (^)
   , (:.)
   , (.-)
+  , axes
+  , bezout
+  , diff
+  , display
   , down
+  , factor
+  , gcd
+  , interpolate
+  , liftC
+  , pow
+  , roots
   , xpose
   , (?)
-  , roots
-  , liftC
-  , diff
-  , pow
-  , display
-  , gcd
-  , bezout
-  , axes
   )
 import Data.Complex (Cartesian, i, magnitudeSquared)
 import Data.Ratio (Ratio, (%))
@@ -97,4 +100,10 @@ main = unsafePartial $ do
       let u = (1%1)^0^0^0^0
           _ /\ [a,b,c,d] = axes u
       in (pow a 2 + pow b 2) * (pow c 2 + pow d 2) - pow (a * c + b * d) 2 == pow (a * d - b * c) 2
- 
+  assert' "univariate polynomial interpolation" $ 
+    interpolate [(1%1)/\(3%1), (2%1)/\(1%1), (3%1)/\(2%1)] == (3%2)^2-(13%2)^1+(8%1)^0
+  assert' "univariate polynomial factorization" $
+    let pol = (fromInt 32 % fromInt 1)^5-(fromInt 243 % fromInt 1)^0
+        fs = factor pol
+    in all (\f -> let p' = pol/f in pol == p' * f) fs
+  

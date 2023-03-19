@@ -33,6 +33,7 @@ import Prelude
   , (>>=)
   , (||)
   , (&&)
+  , lcm
   , mod
   , negate
   , add
@@ -52,24 +53,30 @@ import Data.Array
   , (!!)
   , (..)
   , reverse
+  , scanl
   , (:)
   , head
+  , zip
   , zipWith)
+import Data.Array (filter) as Array
 import Data.Complex (Cartesian(..), magnitudeSquared)
 import Data.Complex (pow) as Cartesian
-import Data.Foldable (foldr, maximum, product)
+import Data.Foldable (lookup) as Array
+import Data.Foldable (foldr, foldl, maximum, product)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Int (toNumber)
 import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton
                 , toUnfoldable, union, unionWith, lookup, findMax)
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Ord (abs)
 import Data.Ordering (Ordering (..)) as DataOrd
 import Data.String (joinWith)
+import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..), uncurry, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Number (sqrt)
 import Partial.Unsafe (unsafePartial)
-import Data.Ratio (Ratio, (%))
+import Data.Ratio (Ratio, (%), denominator, numerator)
 import JS.BigInt (BigInt)
 import JS.BigInt (fromInt) as BigInt
 import Prim.Int (class Add, class Compare)
@@ -91,7 +98,7 @@ import Type.Proxy (Proxy(..))
 -- | > -- Defining univariate polynomial
 -- | > -- ------------------------------
 -- | >
--- | > --  * by concatenation / restting with (<>) [see Semigroup instance note] or
+-- | > --  * by concatenation / resetting with (<>) [see Semigroup instance note] or
 -- | > --  * by summation with (+) and (-)
 -- | >
 -- | > -- of terms (monoms). Each term has the form: coef ^ degree.
@@ -124,7 +131,7 @@ import Type.Proxy (Proxy(..))
 -- | > -- Polynomials constitute a Ring, so usual mathematical operations can 
 -- | > -- be performed:
 -- | > 
--- | > a = 1 ^ 2 <> 4 ^ 0 -- working with the Int as the underlying structure
+-- | > a = 1 ^ 2 <> 4 ^ 0 -- working with Int as the underlying structure
 -- | >                    -- here 
 -- | > b = 1 ^ 1 <> 1 ^ 0
 -- | > 
@@ -272,7 +279,7 @@ import Type.Proxy (Proxy(..))
 -- |
 -- |
 -- | > -- 1) DEFINITION : There are (at least) three possible 
--- | > --    ----------   and equivalent waysto define multivariate
+-- | > --    ----------   and equivalent ways to define multivariate
 -- | > --                 polynomials with this library:
 -- |
 -- | > --    a) By using a sum of terms where each term is defined with 
@@ -1545,3 +1552,107 @@ diff :: forall a. Eq a => Ord a =>
                Polynomial a -> Polynomial a
 diff = derivative fromInt
 
+-- | Polynomial such that the second element of each tuple is 
+-- | the image of the first element.
+interpolate :: forall a.
+  Eq a =>
+  Semiring a =>
+  EuclideanRing a =>
+  Array (a /\ a) -> Polynomial a
+
+interpolate arr =
+  let go n build_ current_ prod_ arr_ =
+        case uncons arr_ of
+          Just { head: x /\ y, tail }
+            -> 
+              let 
+                build = 
+                  foldl
+                    (\ acc j -> 
+                      let i = n+1 - j
+                      in acc+((acc?(j-1)?(i+1) - acc?(j-1)? i) / (acc? 0? n - acc? 0? i))^i^j
+                    )
+                    (build_ + x ^ n ^ 0 + y ^ n ^ 1)
+                    (2..(n+1))
+              in go (n+1)
+                    build
+                    (current_ + (build?(n+1)? 0)^0 * prod_)
+                    (prod_ * (one ^ 1 - x ^ 0))
+                    tail
+          _ -> current_
+  in 
+    case uncons arr of
+      Just { head: x0 /\ y0, tail }
+        -> go 1 
+              (x0 ^ 0 ^ 0 + y0 ^ 0 ^ 1) 
+              (y0 ^ 0)
+              (one ^ 1 - x0 ^0)
+              tail
+      _ -> zero
+
+-- | All the divisors of a positive integer
+divisors :: forall a.
+  Semiring a =>
+  EuclideanRing a =>
+  Eq a =>
+  a -> Array a
+divisors n =
+  let go d acc 
+        | d == -n-one = acc 
+        | otherwise = go (d - one) $
+            if d /= zero && n `mod` d == zero
+              then (d:acc)
+              else acc
+  in go n []
+
+-- | At least one non-constant polynomial factor 
+-- | if the univariate input, with rational coefficients,
+-- | is not irreductible, empty array if it is.
+factor :: forall a. 
+  Eq a => 
+  Ord a => 
+  EuclideanRing a => 
+  IntLiftable a => 
+  Divisible a => 
+  Leadable a => 
+  Polynomial (Ratio a) -> Array (Polynomial (Ratio a))
+
+factor pol =
+  let zfier q_ n_ l_
+        | q_ == zero = l_
+        | otherwise = 
+            let q = diff q_ * (((one % n_) * _) <$> one)
+                n = n_ + one
+                l = lcm (denominator $ q_ :. zero) l_
+            in zfier q n l
+      d = zfier pol one one
+  in ((_ % one) <$> _ ) <$> factorOnZ (numerator <$> (((d % one) * _) <$> pol))
+
+-- | At least one non-constant polynomial factor 
+-- | if the univariate input, with integer coefficients,
+-- | is not irreductible, empty array if it is.
+factorOnZ :: forall a. 
+  Ord a => 
+  Ring a => 
+  EuclideanRing a => 
+  Divisible a => 
+  Leadable a => 
+  Polynomial a -> Array (Polynomial a)
+
+factorOnZ pol =
+  let n = degree pol
+      search d = -- a factor of degree d 
+        let sample = scanl (\acc _ -> acc + one) zero $ 0..d
+            probe = (abs <<< (pol :. _)) <$> sample
+        in case Array.lookup zero (zip probe sample) of
+              Just x -> [one ^ 1 - x ^ 0]
+              _ ->
+                let
+                  candidates = interpolate <$> (zip sample <$> (sequence $ divisors <$> probe))
+                  fr = (_ % one)
+                in 
+                  Array.filter 
+                    ( \candidate -> (fr <$> pol) `mod` (fr <$> candidate) == zero) 
+                  candidates
+    in Array.filter ((_ /= 0) <<< degree) $ foldr (<>) [] $ search <$> 1..(n/2) 
+      

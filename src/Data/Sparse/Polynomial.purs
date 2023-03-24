@@ -68,11 +68,13 @@ import Data.Int (toNumber)
 import Data.Map (Map, empty, filter, fromFoldable, insert, mapMaybe, singleton
                 , toUnfoldable, union, unionWith, lookup, findMax)
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Monoid (power)
+import Data.Monoid.Multiplicative (Multiplicative(..))
 import Data.Ord (abs)
 import Data.Ordering (Ordering (..)) as DataOrd
 import Data.String (joinWith)
 import Data.Traversable (sequence)
-import Data.Tuple (Tuple(..), uncurry, snd)
+import Data.Tuple (Tuple(..), uncurry, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Number (sqrt)
 import Partial.Unsafe (unsafePartial)
@@ -1590,20 +1592,100 @@ interpolate arr =
               tail
       _ -> zero
 
+-- | True if n is < 2 or prime
+isPrime :: forall a. 
+  Ord a => 
+  Semiring a => 
+  EuclideanRing a => 
+  a -> Boolean
+isPrime n =
+  let go i = 
+        if (i*i) > n
+          then true
+          else n `mod` i /= zero && go (i + one)
+  in go (one + one)
+
+-- | Ad infinitum
+nextPrime :: forall a. 
+  Ord a => 
+  Semiring a => 
+  EuclideanRing a => 
+  a -> a
+nextPrime n = 
+  if isPrime (n + one)
+    then n + one
+    else nextPrime (n + one)
+
+-- | If n is prime, returns true /\ n,
+-- | otherwise, false /\ d if d | n with d > 1
+primeFactor :: forall a. 
+  Ord a => 
+  Eq a => 
+  EuclideanRing a => 
+  a -> Boolean /\ a
+primeFactor n =
+  let ldpf p =
+        if n `mod` p == zero 
+          then p /\ p
+          else if n < (p*p) 
+            then n /\ n
+            else ldpf (nextPrime p)
+  in 
+    if n == one 
+      then false /\ one
+      else 
+        let ldpn = ldpf (one + one)
+          in (fst ldpn == n) /\ snd ldpn
+
+-- | Factorizes a number > 1  in an array (divider /\ multiplicity)
+primeFactorization :: forall base exp. 
+  Ord base => 
+  Eq base => 
+  Semiring base =>
+  EuclideanRing base =>
+  Semiring exp =>
+  base -> Array (base /\ exp)
+primeFactorization m =
+    let go acc n current cpt =
+         if n == one 
+          then acc
+          else 
+            let bool = primeFactor n
+                nogarbage = 
+                  if current == zero 
+                    then acc 
+                    else (current /\ cpt) : acc
+            in 
+              let p = snd bool
+              in 
+                if fst bool 
+                  then
+                    if p == current
+                      then (p /\ (cpt + one)) : acc
+                      else (p /\ one) : nogarbage
+                  else
+                    if p == current
+                      then go acc (n/p) current (cpt + one)
+                      else go nogarbage (n/p) p one
+      in go [] m zero zero
+
 -- | All the divisors of a positive integer
 divisors :: forall a.
   Semiring a =>
   EuclideanRing a =>
   Eq a =>
+  Ord a =>
   a -> Array a
 divisors n =
-  let go d acc 
-        | d == -n-one = acc 
-        | otherwise = go (d - one) $
-            if d /= zero && n `mod` d == zero
-              then (d:acc)
-              else acc
-  in go n []
+  let power' m i = p where 
+        Multiplicative p = power (Multiplicative m) i 
+      pos = 
+        product <$> 
+          ( sequence $ 
+            (\(d /\ m) -> power' d <$> 0..m) 
+            <$> primeFactorization n
+          )
+  in pos <> (negate <$> pos)
 
 -- | At least one non-constant polynomial factor 
 -- | if the univariate input, with rational coefficients,
@@ -1636,13 +1718,15 @@ factorOnZ :: forall a.
   Ring a => 
   EuclideanRing a => 
   Divisible a => 
+  IntLiftable a =>
   Leadable a => 
   Polynomial a -> Array (Polynomial a)
 
 factorOnZ pol =
   let n = degree pol
       search d = -- a factor of degree d 
-        let sample = scanl (\acc _ -> acc + one) zero $ 0..d
+        let sample = 
+              scanl (\acc _ -> acc + one) (zero - (fromInt $ d/2)) $ 0..d
             probe = (abs <<< (pol :. _)) <$> sample
         in case Array.lookup zero (zip probe sample) of
               Just x -> [one ^ 1 - x ^ 0]

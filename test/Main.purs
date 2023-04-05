@@ -13,6 +13,7 @@ import Data.Sparse.Polynomial
   , diff
   , display
   , down
+  , eisenstein
   , factor
   , gcd
   , interpolate
@@ -106,4 +107,6 @@ main = unsafePartial $ do
     let pol = (fromInt 32 % fromInt 1)^5-(fromInt 243 % fromInt 1)^0
         fs = factor pol
     in all (\f -> let p' = pol/f in pol == p' * f) fs
+  assert' "univariate polynomial irreductibility" $ 
+    eisenstein (fromInt 1^5-fromInt 6^1+fromInt 3^0) (fromInt 3)
   

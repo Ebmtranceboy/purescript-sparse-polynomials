@@ -52,6 +52,7 @@ import Data.Array
   , uncons
   , (!!)
   , (..)
+  , all
   , reverse
   , scanl
   , (:)
@@ -1547,6 +1548,10 @@ instance ratioIntLiftable ::
   (Ord a, IntLiftable a, EuclideanRing a) => IntLiftable (Ratio a) where
   fromInt n = fromInt n % one
 
+instance
+  ( Eq a, IntLiftable a, Semiring a) => IntLiftable (Polynomial a) where
+  fromInt n = (_ * fromInt n) <$> one
+
 
 -- | Univariate polynomial differentiation
 diff :: forall a. Eq a => Ord a => 
@@ -1739,4 +1744,24 @@ factorOnZ pol =
                     ( \candidate -> (fr <$> pol) `mod` (fr <$> candidate) == zero) 
                   candidates
     in Array.filter ((_ /= 0) <<< degree) $ foldr (<>) [] $ search <$> 1..(n/2) 
-      
+
+ 
+-- | Eisenstein criterium of irreductibility of f:
+-- |                            _
+-- | Exists prime p,             |
+-- | p   not | an                | => f = anx^n + ... + a1x + a0 irreductible over Q
+-- | p       | ai for i=0..n-1   | 
+-- | p^2 not | a0               -
+-- |
+eisenstein :: forall a.
+  Eq a =>
+  Divisible a =>
+  Leadable a =>
+  CommutativeRing a =>
+  EuclideanRing a =>
+  Polynomial a -> a -> Boolean
+eisenstein f p = 
+  let n = degree f
+      ds = all (\i -> (f ? i) `mod` p == zero) $ 0..(n-1)
+  in (f ? n) `mod` p /= zero && ds && (f ? 0) `mod` (p*p) /= zero
+

@@ -21,7 +21,7 @@ import Data.Sparse.Polynomial
   , pow
   , roots
   , xpose
-  , (?)
+  , (!)
   )
 import Data.Complex (Cartesian, i, magnitudeSquared)
 import Data.Ratio (Ratio, (%))
@@ -61,7 +61,7 @@ main = unsafePartial $ do
   assert' "polynomial Number application" $ pol2 :. 2.0 == 17.0
   assert' "polynomial Complex application" $ pol5 :. i == ((_ * (-3)) <$> one)
   assert' "polynomial Rational application" $ pol6 :. (1%2) == -44%21
-  assert' "coefficient extraction" $ pol3 ? 1 == fromInt 4
+  assert' "coefficient extraction" $ pol3 ! 1 == fromInt 4
   let x :: P3
       x = (1%1) ^ 0 ^ 0 ^ 1
       y :: P3

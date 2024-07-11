@@ -1,6 +1,4 @@
-module Data.Sparse.Polynomial
-  (module Data.Sparse.Polynomial) 
-  where
+module Data.Sparse.Polynomial where
 
 import Prelude 
   ( class Eq
@@ -101,7 +99,7 @@ import Type.Proxy (Proxy(..))
 -- | > -- Defining univariate polynomial
 -- | > -- ------------------------------
 -- | >
--- | > --  * by concatenation / resetting with (<>) [see Semigroup instance note] or
+-- | > --  * by concat / reset with (<>) [see Semigroup instance note] or
 -- | > --  * by summation with (+) and (-)
 -- | >
 -- | > -- of terms (monoms). Each term has the form: coef ^ degree.
@@ -128,7 +126,7 @@ import Type.Proxy (Proxy(..))
 -- | > 5.0 `xpose` (2.0 ^ 3 <> (-4.0) ^ 0)
 -- | 246.0
 -- | >
--- | > -- without having to specify the name of the variable, as expected :-)
+-- | > -- without having to specify the variable name.
 -- | 
 -- | 
 -- | > -- Polynomials constitute a Ring, so usual mathematical operations can 
@@ -172,8 +170,8 @@ import Type.Proxy (Proxy(..))
 -- | (1)×x^2+5
 -- |
 -- | 
--- | > -- Coefficients can be extracted with the (?) query operator :
--- | > a ? 0
+-- | > -- Coefficients can be extracted with the (!) query operator :
+-- | > a ! 0
 -- | 4
 -- | 
 -- |
@@ -256,7 +254,7 @@ import Type.Proxy (Proxy(..))
 -- |
 -- | > --    This set of notes shows several uses of the functions
 -- | > --    performing  multivariate polynomial manipulation provided 
--- | > --    by this library, along with (^) and (?) : 
+-- | > --    by this library, along with (^) and (!) : 
 -- | > --
 -- | > --     * `set`,  for evaluation and arity decrease, more efficient 
 -- | > --               but demanding than
@@ -288,8 +286,8 @@ import Type.Proxy (Proxy(..))
 -- | > --    a) By using a sum of terms where each term is defined with 
 -- | > --       the enumerative representation "n ^ ... ^ e_Z ^ e_Y ^ e_X",
 -- | > --       generalizing the construction seen with univariate polynomials
--- | > --       where n is an element of the underlying structure and the e_i 
--- | > --       are of type Int and correspond to respective variable's degrees.
+-- | > --       where n is an element of the underlying structure and the e_i, 
+-- | > --       of type Int, correspond to respective variable's degrees.
 -- | >
 -- | > 3^0^2
 -- | (3)×x^2
@@ -321,51 +319,50 @@ import Type.Proxy (Proxy(..))
 -- | (3)×x^2+((4)×z)×y+(5)×t
 -- |
 -- | > --    Note that, in the enumerative representation of a term, the 
--- | > --    positions of the exponents listed from left to right were designed 
--- | > --    to be of decreasing proximity (i.e of decreasing technical 
--- | > --    accessibility) so that the righter the position of a 1,
--- | > --    the more remote and more difficult to access.
+-- | > --    positions of the exponents listed from left to right were 
+-- | > --    designed to be of decreasing proximity (i.e of decreasing 
+-- | > --    technical accessibility) so that the righter the position 
+-- | > --    of a 1, the more remote and more difficult to access.
 -- | > --    In other words, if an integer is associated with the proximity of
--- | > --    a term, and if `proxi` is the function returning that integer,
+-- | > --    a term, and if `@` is the function returning that integer,
 -- | > --    
--- | > --    proxi(x) < proxi(y) < ... < proxi(nearest) < proxi(kst one).
+-- | > --    @(x) < @(y) < ... < @(nearest) < @(kst one).
 -- | > --
 -- | > --    In addition, this library has been built, for any arity,
 -- | > --    following these four principles : 
 -- | > --
 -- | > --     * the proximity of two consecutive axes defer by 1,
 -- | > --     * the proximity of the most remote axis ("x") is set to 0,
--- | > --     * the proximity of the most accessible (aka nearest) axis
--- | > --       is set to arity-1, and
--- | > --     * the term `kst one` is more accessible than any other axis.
+-- | > --     * thus, the proximity of the most accessible (aka nearest) axis
+-- | > --       is set to arity-1,
+-- | > --     * and the constant terms (like `kst one`) are more accessible 
+-- | > --       than any other axis.
 -- |
 -- | > --    This leads to the preferred third option:
 -- |
 -- | > --    c) By using 
--- | > --     * proximity of axes (denoted with <"'">), 
+-- | > --     * proximity of axes, 
 -- | > --     * `one^1`, the _univariate_ axis, and
 -- | > --     * `pad` and `swap` functions : 
 -- | >
--- | > --============ DEFINING SCHEME FOR ANY ARITY (4 here) ===================
--- | >                -----------------------------                                                   
+-- | > --========= DEFINING SCHEME FOR ANY ARITY > 1 (arity=4 here) ==========
+-- | >              ---------------------------------                                                 
 -- | >
--- | > x' = Proxy :: _ 0   -- *) Sequentially, give each proximity an identifier 
--- | > y' = Proxy :: _ 1
--- | > z' = Proxy :: _ 2
--- | > t' = Proxy :: _ 3   -- *) Check that <arity> = <proxi(nearest axis)+1>
+-- | >                     -- *) Keep the 0, 1, .., arity-1 sequence in mind
+-- | >                           as the x, y, .., t sequence of axes.
 -- | >
--- | > kst = pad t'        -- *) Wrapping function = pad <arity-1>
+-- | > kst = pad @3        -- *) Define the wrapping function = pad @(arity-1)
 -- | >
 -- | >                     -- *) Choose a underlying structure to define `one`
 -- | >                     --    then :
--- | > t = pad z' (1^1)    --    Nearest axis = pad <arity-2> (one^1)
+-- | > t = pad @2 (1^1)    --    Nearest axis = pad @(arity-2) $ one^1
 -- | >
 -- | >                     -- *) Other axis =
--- | > x = swap x' t' t    --      swap <proxi(self)> <arity-1> (nearest axis)
--- | > y = swap y' t' t    --    ...
--- | > z = swap z' t' t    --    ...
+-- | > x = swap @0 @3 t    --      swap @self @(arity-1) $ nearest axis
+-- | > y = swap @1 @3 t    --    ...
+-- | > z = swap @2 @3 t    --    ...
 -- | > ...                 --    ...
--- | > --=======================================================================
+-- | > --=====================================================================
 -- | >
 -- | > kst 3*x*x + kst 4*y*z + kst 5*t          
 -- | (3)×x^2+((4)×z)×y+(5)×t
@@ -374,8 +371,9 @@ import Type.Proxy (Proxy(..))
 -- | > --    | Using `pad` increases arity. |
 -- | > --     ------------------------------
 -- | 
+-- | > -- Note that, for arity=1, `kst = pad @0` and `x = one^1`.
 -- | 
--- | > -- 2) DISPLAY : By defaut, the first four variables are printed with the 
+-- | > -- 2) DISPLAY : By defaut, the first 4 variables are printed with the 
 -- | > --    -------
 -- | > --    "x","y","z" and "t" strings in that order, but, for five
 -- | > --    or more variables, the variables names are proximity-indexed
@@ -398,7 +396,7 @@ import Type.Proxy (Proxy(..))
 -- | > -- 3) EVALUATION : A multivariate polynomial, say with arity = 4 
 -- | > --    ----------   for instance, like
 -- | >
--- | > p = kst 2 * x - y * y + z * z * t - z * t * t 
+-- | > p = kst 2 * x - y * y + z * z * t - z * t * t
 -- | > p
 -- | (2)×x+((-1))×y^2+((1)×t)×z^2+((-1)×t^2)×z
 -- | >
@@ -413,22 +411,22 @@ import Type.Proxy (Proxy(..))
 -- | > --    As a consequence, if we evaluate (`set`) the t-component of p
 -- | > --    at a constant value,
 -- | > 
--- | > 4 `set t'` p
+-- | > 4 `set @3` p
 -- | (2)×x+((-1))×y^2+(4)×z^2+(-16)×z
 -- | >
--- | > :t 4 `set t'` p
+-- | > :t 4 `set @3` p
 -- | Polynomial (Polynomial (Polynomial Int))
 -- | >
--- | > --    we get the same 3-variate polynomial as if we substitute (`fill`) t
--- | > --    with the corresponding constant polynomial :
+-- | > --    we get the same 3-variate polynomial as if we substitute (`fill`)
+-- | > --    the t variable with the corresponding constant polynomial :
 -- | > 
--- | > kst 4 `fill t'` p
+-- | > kst 4 `fill @3` p
 -- | (2)×x+((-1))×y^2+(4)×z^2+((-16))×z
 -- | >
 -- | > --    However, with `fill`, the result is in the same scope 
 -- | > --    as p (where arity = 4).
 -- | >
--- | > :t kst 4 `fill t'` p
+-- | > :t kst 4 `fill @3` p
 -- | Polynomial (Polynomial (Polynomial (Polynomial Int)))
 -- |
 -- | > --     -------------------------------------
@@ -436,7 +434,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    | using `fill` does not change arity. |
 -- | > --     -------------------------------------
 -- |
--- | > --    This is the desired behavior because `set` consumes all occurrences 
+-- | > --    This is a desired behavior because `set` consumes all occurrences 
 -- | > --    of a variable so the loss of one unit of arity only reflects
 -- | > --    the saved space. On the other hand, with `fill`, all occurrences 
 -- | > --    of the replaced variable are consumed as well but replacements 
@@ -450,17 +448,17 @@ import Type.Proxy (Proxy(..))
 -- | > --
 -- | > --    from p(x,y,z,t) :
 -- | >
--- | > --    (xtend = pad x' : convert a number
+-- | > --    (xtend = pad @0 : convert a number
 -- | > --    to the corresponding univariate constant polynomial)
 -- | >
--- | > 3 `set z'` (4 `set t'` p)                -- output arity = 2
--- | > 4 `set z'` (xtend 3 `set z'` p)          -- output arity = 2
--- | > xtend 3 `set z'` (kst 4 `fill t'` p)     -- output arity = 3
--- | > 4 `set t'` (kst 3 `fill z'` p)           -- output arity = 3
--- | > pad z' 3 `fill z'` (4 `set t'` p)        -- output arity = 3
--- | > pad z' 4 `fill z'` (xtend 3 `set z'` p)  -- output arity = 3
--- | > kst 3 `fill z'` (kst 4 `fill t'` p)      -- output arity = 4
--- | > kst 4 `fill t'` (kst 3 `fill z'` p)      -- output arity = 4
+-- | > 3 `set @2` (4 `set @3` p)                -- output arity = 2
+-- | > 4 `set @2` (xtend 3 `set @2` p)          -- output arity = 2
+-- | > xtend 3 `set @2` (kst 4 `fill @3` p)     -- output arity = 3
+-- | > 4 `set @3` (kst 3 `fill @2` p)           -- output arity = 3
+-- | > pad @2 3 `fill @2` (4 `set @3` p)        -- output arity = 3
+-- | > pad @2 4 `fill @2` (xtend 3 `set @2` p)  -- output arity = 3
+-- | > kst 3 `fill @2` (kst 4 `fill @3` p)      -- output arity = 4
+-- | > kst 4 `fill @3` (kst 3 `fill @2` p)      -- output arity = 4
 -- |
 -- |
 -- | > --    Notice that using `set` requires to be careful about the types of 
@@ -472,19 +470,20 @@ import Type.Proxy (Proxy(..))
 -- | > --    partial evaluations performed), are either with `set`,
 -- | > --    providing the values _in_order_
 -- |
--- | > set x' 1 $ set y' 2 $ set z' 3 $ set t' 4 p
+-- | > set @0 1 $ set @1 2 $ set @2 3 $ set @3 4 p
 -- | -14
 -- |
--- | > --    or with `fill`, providing constant polynomials (notice 
--- | > --    the arbitrary order) and, eventually, extracting the constant :
+-- | > --    or with `fill`, providing constant polynomials in any order 
+-- | > --    (techically, the result is still a polynomial whose constant 
+-- | > --    value can be extracted with `peel`) :
 -- |
--- | > peel$ fill t'(kst 4) $ fill x'(kst 1) $ fill z'(kst 3) $ fill y'(kst 2) p
+-- | > fill @3 (kst 4) $ fill @0 (kst 1) $ fill @2 (kst 3) $ fill @1 (kst 2) p
 -- | -14
 -- |
 -- | > --    or with `full`, a 'saturated' version of `fill` where values have
 -- | > --    to be provided in order, this time :
 -- | 
--- | > peel $ map kst [1,2,3,4] `full` p 
+-- | > peel $ map kst [1,2,3,4] `full` p
 -- | -14
 -- |
 -- |
@@ -492,7 +491,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    univariate polynomial, it is implicitely expressed in t, 
 -- | > --    in respect of the type of the coefficients of the z-component :
 -- | >
--- | > pz = (2^1-5^0) `set z'` p
+-- | > pz = (2^1-5^0) `set @2` p
 -- | > pz
 -- | (2)×x+((-1))×y^2+(2)×z^3+(-15)×z^2+(25)×z
 -- | >
@@ -507,7 +506,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    convince that the expression of pz is right :
 -- | > --    
 -- | > 
--- | > pt = (kst 2 * t - kst 5) `fill z'` p
+-- | > pt = (kst 2 * t - kst 5) `fill @2` p
 -- | > pt
 -- | (2)×x+((-1))×y^2+(2)×t^3+(-15)×t^2+(25)×t
 -- | 
@@ -517,7 +516,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    replacement variables are always stricly more accessible 
 -- | > --    than the replaced one :
 -- | > 
--- | > (kst 2 * z - kst 5 * y ) `fill z'` p
+-- | > (kst 2 * z - kst 5 * y ) `fill @2` p
 -- | (2)×x+((25)×t+(-1))×y^2+(((-20)×t)×z+(5)×t^2)×y+((4)×t)×z^2+((-2)×t^2)×z
 -- | 
 -- | 
@@ -528,7 +527,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    is shifted one step more remote and gets associated with z,
 -- | > --    as already stated.
 -- | > 
--- | > zero `set z'` pt
+-- | > zero `set @2` pt
 -- | (2)×x+((-1))×y^2+(2)×z^3+(-15)×z^2+(25)×z
 -- | 
 -- | > --    It is conceptually easier to change pz to pt, by substituting z 
@@ -540,7 +539,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    function which shifts several chosen axes once  : 
 -- | > --    
 -- | > 
--- | > t `fill z'` (nest t' pz)
+-- | > t `fill @2` (nest @2 pz)
 -- | (2)×x+((-1))×y^2+(2)×t^3+(-15)×t^2+(25)×t
 -- | >
 -- | > --     --------------------------------
@@ -548,9 +547,9 @@ import Type.Proxy (Proxy(..))
 -- | > --     --------------------------------
 -- | 
 -- | > --    This method can be used to change pt to pz as well
--- | > --    (arity won't match though, `set t' zero` would fix that)
+-- | > --    (arity won't match though, `set @3 zero` would fix that)
 -- |
--- | > z `fill t'` pt
+-- | > z `fill @3` pt
 -- | (2)×x+((-1))×y^2+(2)×z^3+((-15))×z^2+(25)×z
 -- |
 -- |
@@ -558,7 +557,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    a function that unconditionnally swaps two axes
 -- | > --    (and keeps scope).
 -- | >
--- | > swap z' t' pt
+-- | > swap @2 @3 pt
 -- | (2)×x+((-1))×y^2+(2)×z^3+((-15))×z^2+(25)×z
 -- | 
 -- | > --     --------------------------------------
@@ -569,13 +568,13 @@ import Type.Proxy (Proxy(..))
 -- | > --    pz's arity is only 3, so swaping z and t requires to `nest`
 -- | > --    a t-slot beforehand just like in one of the preceeding examples
 -- | >
--- | > swap z' t' $ nest t' pz
+-- | > swap @2 @3 $ nest @3 pz
 -- | (2)×x+((-1))×y^2+(2)×t^3+(-15)×t^2+(25)×t
 -- | >
 -- | > --    and a simpler way is to just `nest` a z-slot, thanks to the fact
 -- | > --    that `nest` shifts all previous z content on step nearer, to t:
 -- | >
--- | > nest z' pz
+-- | > nest @2 pz
 -- | (2)×x+((-1))×y^2+(2)×t^3+(-15)×t^2+(25)×t
 -- |
 -- |
@@ -592,7 +591,7 @@ import Type.Proxy (Proxy(..))
 -- | > --    ----------------------
 -- | > --
 -- | > -- coefficient of zt², beware, orders ...
--- | > let p = 10^0^0^1^2 + 20^1^2^0^0 + 42^2^1^0^0 in p ? 0 ? 0 ? 1 ? 2
+-- | > let p = 10^0^0^1^2 + 20^1^2^0^0 + 42^2^1^0^0 in p ! 0 ! 0 ! 1 ! 2
 -- | 42
 -- | 
 -- | ```
@@ -621,95 +620,101 @@ instance
 -- | > --    | PAD : the lifting function that introduces        |
 -- | > --    | ---                                               |
 -- | > --    | in a polynomial as many new variables as 1 + the  |
--- | > --    | provided arity, shifting the content of each      |
+-- | > --    | provided size, shifting the content of each       |
 -- | > --    | of the initial variables as many orders nearer.   |
 -- | > --     ---------------------------------------------------
 -- | > --    | input : polynomial |
 -- | > --     ----------------------------------------------------
 -- | > --    |                            |    arity  |  arity    |
--- | > --    |          usage             |    input  | output    |
+-- | > --    |           usage            |    input  |  output   |
 -- | > --    |                            |           |           |
 -- | > --     ====================================================
--- | > --    |  pad (Proxy :: _ <arity>)  |    P>=0   | P+arity+1 |
+-- | > --    |         pad @size          |    P>=0   |  P+size+1 |
 -- | > --     ----------------------------------------------------
 -- |
--- | > pad (Proxy :: _ 0) 5
+-- | > pad @0 5
 -- | 5
 -- |
--- | > pad (Proxy :: _ 0) (5^0)
+-- | > pad @0 (5^0)
 -- | 5
 -- |
--- | > pad (Proxy :: _ 0) (5^1)
+-- | > pad @0 (5^1)
 -- | (5)×y
 -- |
--- | > pad (Proxy :: _ 1) (5^0)
+-- | > pad @1 (5^0)
 -- | 5
 -- |
--- | > pad (Proxy :: _ 1) (5^1)
+-- | > pad @1 (5^1)
 -- | (5)×z
 -- |
--- | > pad (Proxy :: _ 1) (5^1^1)
+-- | > pad @1 (5^1^1)
 -- | ((5)×t)×z
 -- |
 -- | ```
 class Pad :: Int -> Type -> Type -> Constraint
 class Pad n a b | n a -> b where
-  pad :: Proxy n -> a -> b
+  _pad :: Proxy n -> a -> b
 
 instance Pad 0 a (Polynomial a) where
-  pad _ p = p ^ 0
+  _pad _ p = p ^ 0
 else instance
   ( Pad n1 a b
   , Add n1 1 n
   ) => Pad n a (Polynomial b) where
-  pad _ p = pad (Proxy :: Proxy n1) p ^ 0
+  _pad _ p = _pad (Proxy :: Proxy n1) p ^ 0
+
+pad :: forall @n a b. Pad n a b => a -> b
+pad = _pad @n Proxy
 
 -- | ```
 -- | > --     -----------------------------------------------------
 -- | > --    | UNPAD : the inverse of `pad` that decreases the     |
 -- | > --    | -----                                               |
 -- | > --    | arity of a polynomial of 1 + the                    |
--- | > --    | provided arity, shifting the content of each        |
+-- | > --    | provided size, shifting the content of each         |
 -- | > --    | of the initial variables to a more remote position. |
 -- | > --     -----------------------------------------------------
 -- | > --    | input : polynomial |
--- | > --     ----------------------------------------------------
--- | > --    |                            |    arity  |  arity    |
--- | > --    |          usage             |    input  | output    |
--- | > --    |                            |           |           |
--- | > --     ====================================================
--- | > --    | unpad (Proxy :: _ <arity>) |P>= 2+arity| P-arity-1 |
--- | > --     ----------------------------------------------------
+-- | > --     ------------------------------------------------------
+-- | > --    |                            |    arity    |  arity    |
+-- | > --    |             usage          |    input    | output    |
+-- | > --    |                            |             |           |
+-- | > --     ======================================================
+-- | > --    |          unpad @size       | P >= 2+size | P-size-1  |
+-- | > --     ------------------------------------------------------
 -- |
--- | > unpad (Proxy :: _ 0) (5^1^1 + 6^1^0)
+-- | > unpad @0 (5^1^1 + 6^1^0)
 -- | (6)×x
 -- |
--- | > unpad (Proxy :: _ 1) (5^1^1^0 + 6^1^0^0 + 7^0^0^0)
+-- | > unpad @1 (5^1^1^0 + 6^1^0^0 + 7^0^0^0)
 -- | (6)×x+7
 -- |
 -- | ```
 class Unpad :: Int -> Type -> Type -> Constraint
 class Unpad n a b | n b -> a where
-  unpad :: Proxy n -> b -> a
+  _unpad :: Proxy n -> b -> a
 
 instance
   ( Semiring a
   ) => Unpad (-1) a a where
-  unpad _ p = p
+  _unpad _ p = p
 else instance
   ( Unpad n (Polynomial (Polynomial a)) b
   , Add n 1 n1
   , Semiring a
   , Eq a
   ) => Unpad n1 (Polynomial a) b where
-  unpad _ p = (_ ? 0) $ unpad (Proxy :: Proxy n) p
+  _unpad _ p = (_ ! 0) $ _unpad (Proxy :: Proxy n) p
+
+unpad :: forall @n a b. Unpad n a b => b -> a
+unpad = _unpad @n Proxy
 
 -- | Coefficient extraction
 query :: forall a. Semiring a => Polynomial a -> Int -> a
 query (Poly p) n = fromMaybe zero $ lookup n p
 
 -- |  Coefficient extraction infix notation
-infixl 8 query as ?
+infixl 8 query as !
 
 -- | Warning : the 2 appended maps are assumed without common keys
 -- | and when they aren't, `<>` is used as the operator of resetting 
@@ -758,45 +763,48 @@ infixl 5 evaluate as :.
 -- | > --    | one order more remote.                                  |
 -- | > --     ---------------------------------------------------------
 -- | > --    | input1 : value || input2 : polynomial |
--- | > --     ---------------------------------------------------------------
--- | > --    |    arity  |                             |    arity   |  arity |
--- | > --    |   input1  |           `usage`           |   input2   = output |
--- | > --    |           |                             |            |        |
--- | > --     ================================================================
--- | > --    |P-(focus+1)|  `set (Proxy :: _ <focus>)` |   P>focus  =   P-1  |
--- | > --     ---------------------------------------------------------------
+-- | > --     ---------------------------------------------------
+-- | > --    |    arity    |               |    arity   |  arity |
+-- | > --    |    input1   |     `usage`   |   input2   = output |
+-- | > --    |             |               |            |        |
+-- | > --     ===================================================
+-- | > --    | P-(focus+1) |  `set @focus` |   P>focus  =   P-1  |
+-- | > --     ----------------------------------------------------
 -- | 
 -- | > 1^0^0^1 + 2^1^3^0
 -- | (1)×x+((2)×z)×y^3
 -- | 
--- | > (5^0^0) `set (Proxy :: _ 0)` (1^0^0^1 + 2^1^3^0)
+-- | > (5^0^0) `set @0` (1^0^0^1 + 2^1^3^0)
 -- | ((2)×y)×x^3+5
 -- | 
--- | > (5^1^3) `set (Proxy :: _ 0)` (1^0^0^1 + 2^1^3^0)
+-- | > (5^1^3) `set @0` (1^0^0^1 + 2^1^3^0)
 -- | ((7)×y)×x^3
 -- | 
--- | > (5^0) `set (Proxy :: _ 1)` (1^0^0^1 + 2^1^3^0) 
+-- | > (5^0) `set @1` (1^0^0^1 + 2^1^3^0) 
 -- | (1)×x+(250)×y
 -- | 
--- | > (5) `set (Proxy :: _ 2)` (1^0^0^1 + 2^1^3^0) 
+-- | > (5) `set @2` (1^0^0^1 + 2^1^3^0) 
 -- | (1)×x+(10)×y^3
 -- | 
 -- | ```
 class Set :: Int -> Type -> Type -> Constraint
 class Set n a b | n b -> a where
-  set :: Proxy n -> a -> Polynomial b -> b 
+  _set :: Proxy n -> a -> Polynomial b -> b 
 
 instance
   ( Semiring a
   ) => Set 0 a a where
-  set _ = xpose
+  _set _ = xpose
 
 else instance
   ( Set n1 a b
   , Add n1 1 n
   , Semiring a
   ) => Set n a (Polynomial b) where
-  set _ = down $ set (Proxy :: Proxy n1)
+  _set _ = down $ _set (Proxy :: Proxy n1)
+
+set :: forall @n a b. Set n a b => a -> Polynomial b -> b
+set = _set @n Proxy
 
 down :: forall f a c d. 
   Functor f => 
@@ -839,7 +847,7 @@ deep :: forall f a c d.
   Functor f => 
   Semiring a =>
   (a -> c -> d) -> Polynomial a -> f c -> f d
-deep f = (<$>) <<< f <<< (_ ? 0)
+deep f = (<$>) <<< f <<< (_ ! 0)
 
 xpand :: forall a. 
   Eq a => 
@@ -855,13 +863,13 @@ xpand = flip flipXpand
 -- | > --    | by the provided value.                         |
 -- | > --     ------------------------------------------------
 -- | > --    | input1 : value || input2 : polynomial |
--- | > --     -----------------------------------------------------------------
--- | > --    |    arity  |                                |    arity  |  arity |
--- | > --    |   input1  |            `usage`             |   input2  = output |
--- | > --    |           |                                |           |        |
--- | > --     =================================================================
--- | > --    |      P    |  `fill (Proxy :: _ <focus>)`   |  P>focus  =    P   |
--- | > --     -----------------------------------------------------------------
+-- | > --     -------------------------------------------------
+-- | > --    |    arity  |                |    arity  |  arity |
+-- | > --    |   input1  |     `usage`    |   input2  = output |
+-- | > --    |           |                |           |        |
+-- | > --     =================================================
+-- | > --    |      P    | `fill @focus`  |  P>focus  =    P   |
+-- | > --     -------------------------------------------------
 -- | 
 -- | > 1^0^0^1 + 2^1^3^0
 -- | (1)×x+((2)×z)×y^3
@@ -869,29 +877,42 @@ xpand = flip flipXpand
 -- | > 1^0^0^1 + 1^0^1^0
 -- | (1)×x+(1)×y
 -- | 
--- | > (1^0^0^1 + 1^0^1^0) `fill (Proxy :: _ 0)` (1^0^0^1 + 2^1^3^0)
+-- | > (1^0^0^1 + 1^0^1^0) `fill @0` (1^0^0^1 + 2^1^3^0)
 -- | (1)×x+((2)×z)×y^3+(1)×y
 -- | 
--- | > (1^0^0^1 + 1^0^1^0) `fill (Proxy :: _ 1)` (1^0^0^1 + 2^1^3^0)
+-- | > (1^0^0^1 + 1^0^1^0) `fill @1` (1^0^0^1 + 2^1^3^0)
 -- | ((2)×z)×x^3+(((6)×z)×y)×x^2+(((6)×z)×y^2+1)×x+((2)×z)×y^3
 -- |
--- | > (1^0^0^1 + 1^0^1^0) `fill (Proxy :: _ 2)` (1^0^0^1 + 2^1^3^0) 
+-- | > (1^0^0^1 + 1^0^1^0) `fill @2` (1^0^0^1 + 2^1^3^0) 
 -- | ((2)×y^3+1)×x+(2)×y^4
 -- |
 -- | ```
-fill :: forall a v w.
+_fill :: forall a v w.
   Eq a =>
   Semiring a =>
   NextAxis v w =>
   GoSwap 0 w a =>
   Proxy v -> Polynomial a -> Polynomial a -> Polynomial a
-fill _ r p =
+_fill _ r p =
   let x' = Proxy :: Proxy 0
-  in zero `set x'` 
-    (pad x' r `fillValid x'` 
-      (goSwap x' (Proxy :: Proxy w) $ pad x' p)
+  in zero `_set x'` 
+    (_pad x' r `fillValid x'` 
+      (goSwap x' (Proxy :: Proxy w) $ _pad x' p)
     )
-  
+
+fill :: forall a @v w.
+  Eq a =>
+  Semiring a =>
+  NextAxis v w =>
+  GoSwap 0 w a =>
+  Polynomial a -> Polynomial a -> Polynomial a
+fill r p = 
+  let x' = Proxy :: Proxy 0
+  in zero `_set x'` 
+    (_pad x' r `fillValid x'` 
+      (goSwap x' (nextAxis $ (Proxy :: Proxy v)) $ _pad x' p)
+    )
+
 class Full :: Int -> Type -> Constraint
 class Full n a where
   fullImpl :: Proxy n -> Array (Polynomial a -> Polynomial a -> Polynomial a)
@@ -900,7 +921,7 @@ instance
   ( Eq a
   , Semiring a
   ) => Full 0 a where
-  fullImpl _ = [fill (Proxy :: Proxy 0)]
+  fullImpl _ = [_fill (Proxy :: Proxy 0)]
 else instance 
   ( Full n1 a
   , Add n1 1 n
@@ -909,7 +930,7 @@ else instance
   , Eq a
   , Semiring a
   ) => Full n a where
-  fullImpl _ = fullImpl (Proxy :: Proxy n1) <> [fill (Proxy :: Proxy n)]
+  fullImpl _ = fullImpl (Proxy :: Proxy n1) <> [_fill (Proxy :: Proxy n)]
 
 -- | Saturated version of `fill` where array values have
 -- | to be provided in order of proximity : value at index i 
@@ -1239,11 +1260,11 @@ instance
   , Eq a
   , Semiring a
   ) => Peel (Polynomial a) b where
-  peel p = peel (p ? 0)
+  peel p = peel (p ! 0)
 else instance
   ( Semiring a
   ) => Peel a a where
-  peel p = p ? 0
+  peel p = p ! 0
 
 -- | Gets the right representation of each of the variables in the context 
 -- | of the provided multivariate unity
@@ -1256,7 +1277,7 @@ instance
   , Peel a r
   ) => Axed (Polynomial a) r where
   axes arg = 
-    let kst /\ zs = axes (arg ? 0)
+    let kst /\ zs = axes (arg ! 0)
         a = kst $ peel arg
     in ((_ ^ 0) <<< kst) /\ ((a ^ 1) : ((_ ^ 0) <$> zs))
 else instance (Semiring a, Eq a) => Axed a a where
@@ -1271,53 +1292,56 @@ else instance (Semiring a, Eq a) => Axed a a where
 -- | > --    | (focus included) one order nearer.              |
 -- | > --     -------------------------------------------------
 -- | > --    | input : polynomial |
--- | > --     ------------------------------------------------
--- | > --    |                           |    arity  |  arity |
--- | > --    |          usage            |    input  = output |
--- | > --    |                           |           |        |
--- | > --     ================================================
--- | > --    | nest (Proxy :: _ <focus>) |  P>=focus =   P+1  |
--- | > --     ------------------------------------------------
+-- | > --     ---------------------------------------
+-- | > --    |                |    arity    |  arity |
+-- | > --    |      usage     |    input    = output |
+-- | > --    |                |             |        |
+-- | > --     =======================================
+-- | > --    |   nest @focus  |  P >= focus =   P+1  |
+-- | > --     ---------------------------------------
 -- |
--- | > nest (Proxy :: _ 0) $ 5^0
+-- | > nest @0 $ 5^0
 -- | 5
 -- |
--- | > nest (Proxy :: _ 0) $ 8^0^1
+-- | > nest @0 $ 8^0^1
 -- | (8)×y
 -- |
--- | > nest (Proxy :: _ 0) $ 21^1^1
+-- | > nest @0 $ 21^1^1
 -- | ((21)×z)×y
 -- |
--- | > nest (Proxy :: _ 1) $ 5^0^0
+-- | > nest @1 $ 5^0^0
 -- | 5
 -- |
--- | > nest (Proxy :: _ 1) $ 8^0^0^1
+-- | > nest @1 $ 8^0^0^1
 -- | (8)×x
 -- |
--- | > nest (Proxy :: _ 1) $ 13^0^1^0
+-- | > nest @1 $ 13^0^1^0
 -- | (13)×z
 -- |
--- | > nest (Proxy :: _ 1) $ 34^1^1^1
+-- | > nest @1 $ 34^1^1^1
 -- | (((34)×t)×z)×x
 -- |
--- | > nest (Proxy :: _ 2) $ 5^0^0
+-- | > nest @2 $ 5^0^0
 -- | 5
 -- |
--- | > nest (Proxy :: _ 2) $ 34^1^1^1
+-- | > nest @2 $ 34^1^1^1
 -- | (((34)×t)×y)×x
 -- |
 -- | ```
 class Nest :: Int -> Type -> Constraint
 class Nest n a where
-  nest :: Proxy n -> a -> Polynomial a 
+  _nest :: Proxy n -> a -> Polynomial a 
 
 instance Nest 0 a where
-  nest _ = xtend
+  _nest _ = xtend
 else instance
   ( Nest n1 a
   , Add n1 1 n
   ) => Nest n (Polynomial a) where
-  nest _ = map $ nest (Proxy :: Proxy n1)
+  _nest _ = map $ _nest (Proxy :: Proxy n1)
+
+nest :: forall @n a. Nest n a => a -> Polynomial a 
+nest = _nest @n Proxy
 
 xtend :: forall a. a -> Polynomial a
 xtend a = a ^ 0
@@ -1329,22 +1353,22 @@ xtend a = a ^ 0
 -- | > --    | two axes in a polynomial.                  |
 -- | > --     --------------------------------------------
 -- | > --    | input : polynomial |
--- | > --     -----------------------------------------------------------------
--- | > --    |                                            |    arity  |  arity |
--- | > --    |                 usage                      |    input  = output |
--- | > --    |                                            |           |        |
--- | > --     =================================================================
--- | > --    |swap (Proxy :: _ <ax1>) (Proxy :: _ <ax2>)  |    P>=2   =     P  |
--- | > --     -----------------------------------------------------------------
+-- | > --     ----------------------------------------
+-- | > --    |                     |  arity  |  arity |
+-- | > --    |         usage       |  input  = output |
+-- | > --    |                     |         |        |
+-- | > --     ========================================
+-- | > --    |   swap @ax1 @ax2    |  P>=2   =     P  |
+-- | > --     ----------------------------------------
 -- |
 -- | > f = 3^0^0^0^2 + 4^0^1^3^0 + 5^1^0^0^0
 -- | > f
 -- | (3)×x^2+((4)×z)×y^3+(5)×t
 -- | >
--- | > swap (Proxy :: _ 0) (Proxy :: _ 1) f
+-- | > swap @0 @1 f
 -- | ((4)×z)×x^3+(3)×y^2+(5)×t
 -- |
--- | > swap (Proxy :: _ 3) (Proxy :: _ 1) f
+-- | > swap @3 @1 f
 -- | (3)×x^2+(5)×y+((4)×t^3)×z
 -- |
 -- | ```
@@ -1375,7 +1399,7 @@ xchng p =
 
 class Swap :: Int -> Int -> Type -> Constraint
 class Swap m n a where
-  swap :: 
+  _swap :: 
     Proxy m -> 
     Proxy n -> 
     (Polynomial (Polynomial a) -> Polynomial (Polynomial a))
@@ -1384,7 +1408,12 @@ instance
   ( Compare m n o
   , SwapSort o m n a
   ) => Swap m n a where
-  swap = swapSort (Proxy :: Proxy o)
+  _swap = swapSort (Proxy :: Proxy o)
+
+swap :: forall @m @n a
+  . Swap m n a 
+  => Polynomial (Polynomial a) -> Polynomial (Polynomial a)
+swap = _swap @m @n Proxy Proxy
 
 class SwapSort :: Ordering -> Int -> Int -> Type -> Constraint
 class SwapSort o m n a where
@@ -1405,7 +1434,9 @@ else instance SwapSort EQ m n a where
   
 class SwapInOrder :: Int -> Int -> Type -> Constraint
 class SwapInOrder m n a where
-  swapInOrder ::  Proxy m -> Proxy n -> (Polynomial (Polynomial a) -> Polynomial (Polynomial a))
+  swapInOrder ::  
+    Proxy m -> Proxy n 
+      -> (Polynomial (Polynomial a) -> Polynomial (Polynomial a))
   
 instance
   ( GoSwap m delta a
@@ -1415,7 +1446,9 @@ instance
 
 class GoSwap :: Int -> Int -> Type -> Constraint
 class GoSwap from delta a where
-  goSwap :: Proxy from -> Proxy delta -> (Polynomial (Polynomial a) -> Polynomial (Polynomial a))
+  goSwap :: 
+    Proxy from -> Proxy delta 
+      -> (Polynomial (Polynomial a) -> Polynomial (Polynomial a))
   
 instance GoSwap from 0 a where
   goSwap _ _ = identity
@@ -1430,7 +1463,8 @@ else instance
   , SwapAdjacent from a
   ) => GoSwap from delta a where
   goSwap _ _ = 
-    swapAdjacent (Proxy :: Proxy from) >>> goSwap (Proxy :: Proxy next) (Proxy :: Proxy delta1) 
+    swapAdjacent (Proxy :: Proxy from) 
+      >>> goSwap (Proxy :: Proxy next) (Proxy :: Proxy delta1) 
       >>> swapAdjacent (Proxy :: Proxy from)
 
   
@@ -1472,7 +1506,7 @@ roots pnum =
 
 -- | Displays a multivariate polynomial
 -- | with respect to the provided list of names.
--- | What ever the arity, the zero polynomial is displayed as the empty string. 
+-- | Whatever the arity, the zero polynomial is displayed as the empty string. 
 class Display a where
   arity :: a -> Int
   display :: Array String -> a -> String
@@ -1577,13 +1611,19 @@ interpolate arr =
                   foldl
                     (\ acc j -> 
                       let i = n+1 - j
-                      in acc+((acc?(j-1)?(i+1) - acc?(j-1)? i) / (acc? 0? n - acc? 0? i))^i^j
+                      in 
+                        acc 
+                          + 
+                            (
+                              (acc!(j-1)!(i+1) - acc!(j-1)! i) 
+                                / (acc!0!n - acc!0!i)
+                            )^i^j
                     )
-                    (build_ + x ^ n ^ 0 + y ^ n ^ 1)
+                    (build_ + x^n^0 + y^n^1)
                     (2..(n+1))
               in go (n+1)
                     build
-                    (current_ + (build?(n+1)? 0)^0 * prod_)
+                    (current_ + (build!(n+1)! 0)^0 * prod_)
                     (prod_ * (one ^ 1 - x ^ 0))
                     tail
           _ -> current_
@@ -1713,7 +1753,9 @@ factor pol =
                 l = lcm (denominator $ q_ :. zero) l_
             in zfier q n l
       d = zfier pol one one
-  in ((_ % one) <$> _ ) <$> factorOnZ (numerator <$> (((d % one) * _) <$> pol))
+  in 
+    ((_ % one) <$> _ ) 
+        <$> factorOnZ (numerator <$> (((d % one) * _) <$> pol))
 
 -- | At least one non-constant polynomial factor 
 -- | if the univariate input, with integer coefficients,
@@ -1737,22 +1779,29 @@ factorOnZ pol =
               Just x -> [one ^ 1 - x ^ 0]
               _ ->
                 let
-                  candidates = interpolate <$> (zip sample <$> (sequence $ divisors <$> probe))
+                  candidates = 
+                    interpolate 
+                      <$> (zip sample <$> (sequence $ divisors <$> probe))
                   fr = (_ % one)
                 in 
                   Array.filter 
-                    ( \candidate -> (fr <$> pol) `mod` (fr <$> candidate) == zero) 
+                    (
+                      \candidate -> 
+                        (fr <$> pol) `mod` (fr <$> candidate) == zero
+                    ) 
                   candidates
-    in Array.filter ((_ /= 0) <<< degree) $ foldr (<>) [] $ search <$> 1..(n/2) 
+    in 
+      Array.filter ((_ /= 0) <<< degree) 
+        $ foldr (<>) [] $ search <$> 1..(n/2) 
 
  
--- | Eisenstein criterium of irreductibility of f:
+-- | Eisenstein criterium of irreductibility of f = anx^n + ... + a1x + a0:
 -- |                            _
 -- | Exists prime p,             |
--- | p   not | an                | => f = anx^n + ... + a1x + a0 irreductible over Q
+-- | p   not | an                | => f  irreductible over Q
 -- | p       | ai for i=0..n-1   | 
--- | p^2 not | a0               -
--- |
+-- | p^2 not | a0                |
+-- |                            -
 eisenstein :: forall a.
   Eq a =>
   Divisible a =>
@@ -1762,6 +1811,5 @@ eisenstein :: forall a.
   Polynomial a -> a -> Boolean
 eisenstein f p = 
   let n = degree f
-      ds = all (\i -> (f ? i) `mod` p == zero) $ 0..(n-1)
-  in (f ? n) `mod` p /= zero && ds && (f ? 0) `mod` (p*p) /= zero
-
+      ds = all (\i -> (f ! i) `mod` p == zero) $ 0..(n-1)
+  in (f ! n) `mod` p /= zero && ds && (f ! 0) `mod` (p*p) /= zero

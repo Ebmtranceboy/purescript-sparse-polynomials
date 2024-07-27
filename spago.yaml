@@ -20,12 +20,12 @@ package:
       - effect: ">=4.0.0 <5.0.0"
     main: Test.Main
   publish:
-    version: 3.0.0
+    version: 3.0.1
     license: MIT
     location:
       githubOwner: Ebmtranceboy
       githubRepo: purescript-sparse-polynomials
 workspace:
-  extra_packages: {}
-  package_set:
-    registry: 53.3.1
+  extraPackages: {}
+  packageSet:
+    registry: 55.3.0

@@ -1794,14 +1794,14 @@ factorOnZ pol =
       Array.filter ((_ /= 0) <<< degree) 
         $ foldr (<>) [] $ search <$> 1..(n/2) 
 
- 
+-- | ```
 -- | Eisenstein criterium of irreductibility of f = anx^n + ... + a1x + a0:
 -- |                            _
 -- | Exists prime p,             |
 -- | p   not | an                | => f  irreductible over Q
 -- | p       | ai for i=0..n-1   | 
 -- | p^2 not | a0                |
--- |                            -
+-- | ```                           -
 eisenstein :: forall a.
   Eq a =>
   Divisible a =>
